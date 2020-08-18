@@ -40,7 +40,7 @@ If the folders contain files from a previous execution, the library will attempt
 
 Writing data consists in three steps: 
 
-```
+```c#
 // User identifier (to keep data separated per-user)
 uint userId = 1337u;
 
@@ -59,7 +59,7 @@ Hash hash = w.Commit();
 The writer supports writing strings, values of unmanaged types, or 
 arrays (or `Memory<T>`) of unmanaged types. The resulting hash can then be used to query the scratch space:
 
-```
+```c#
 (string, bool[]) value = scratch.Read(userId, hash, BlittableReader r =>
 {
 	string str = r.ReadString();
@@ -113,11 +113,11 @@ The system is cut into three major sections:
 
 ### The Block Index
 
-This is a high-performance dictionary optimized for this specific use case. It supports multi-threaded lock-free reading, under the assumption that the number of reads is significantly greater than the number of writes. It can contain up to 16 million entries, and consumes a constant 144MB of space as two objects (to reduce GC pressure). 
+This is a high-performance dictionary optimized for this specific use case. It supports multi-threaded lock-free reading, under the assumption that the number of reads is significantly greater than the number of writes. It can contain up to 16 million entries, and consumes a constant 448MB of space as two objects (to reduce GC pressure). 
 
 ### The File Wheel
 
 This is a *service*: it has a background thread responsible for flushing written data to disk, and a public API that supports multi-threaded requests to read a block or allocate and write to a new block. 
 
-The file wheel is currently optimized for burst allocations: sudden, short-lived spikes in allocation rate, followed by periods of low allocation rate during which the background thread can flush out its backlog. On a single NVMe disk, this was measured as allowing an average write rate of 600MBps, tolerating a spike rate of 1400MBps for a few seconds. When the burst exceeds the capacity of the system, write requests begin to block the calling thread ; read requests continue to be served.
+The file wheel is currently optimized for burst allocations: sudden, short-lived spikes in allocation rate, followed by periods of low allocation rate during which the background thread can flush out its backlog. On a single NVMe disk (on a [Standard_L8s_v2](https://docs.microsoft.com/en-us/azure/virtual-machines/lsv2-series)), this was measured as allowing an average write rate of 600MBps, tolerating a spike rate of 1400MBps for a few seconds. When the burst exceeds the capacity of the system, write requests begin to block the calling thread ; read requests continue to be served.
 
