@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    
+    <FileVersion>1.0.0-rc1</FileVersion>
+    <PackageId>Lokad.ScratchSpace</PackageId>
+    <PackageVersion>1.0.0-rc1</PackageVersion>
+    <Version>1.0.0-rc1</Version>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageIcon>lokad.png</PackageIcon>
+    <Description>When RAM is not enough, spills data to disk. Once disk space runs out, deletes old data to make room for more.</Description>
+    <PackageProjectUrl>https://github.com/Lokad/ScratchSpace</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lokad.ContentAddr" Version="1.0.0-rc2" />
+    <PackageReference Include="SpookilySharp" Version="1.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="..\lokad.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>
