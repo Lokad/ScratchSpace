@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using Lokad.ContentAddr;
 using Lokad.ScratchSpace.Blocks;
 using Lokad.ScratchSpace.Helpers;
@@ -240,7 +241,11 @@ namespace Lokad.ScratchSpace.Files
             finally
             {
                 if (_pinner.Unpin())
+                {
+                    Interlocked.MemoryBarrier();
+
                     _removalCallback();
+                }
             }
         }
 
@@ -257,6 +262,8 @@ namespace Lokad.ScratchSpace.Files
             // thread must see the proper _removalCallback.
 
             _removalCallback = callback;
+
+            Interlocked.MemoryBarrier();
 
             if (_pinner.MakeUnpinnable())
                 callback();
