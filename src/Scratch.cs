@@ -2,6 +2,7 @@
 using Lokad.ScratchSpace.Files;
 using Lokad.ScratchSpace.Indexing;
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Lokad.ScratchSpace
@@ -18,16 +19,22 @@ namespace Lokad.ScratchSpace
         public Scratch(IFileSource source, CancellationToken cancel)
         {
             _index = new BlockIndex();
-
-            // When a (realm,hash,address) is about to be deleted, remove it from
-            // the index as well.
+            // When a (realm,hash,address) is about to be deleted, remove it from the index as well.
             _wheel = new FileWheel(source, _index.Remove);
-            
-            // Discovered anything on disk ? Register them with the index.
-            foreach (var (realm, hash, address) in _wheel.EnumerateBlocks())
-                _index.Add(realm, hash, address);
-            
+
+            // Time consuming content reading from disk
+            new Thread(() => DiscoverBlockFiles(cancel)){
+                Name = "Scratch.DiscoverBlockFiles"
+            }.Start();
+
             _wheel.StartBackgroundThread(cancel);
+        }
+
+        private void DiscoverBlockFiles(CancellationToken cancel)
+        {
+            // Discovered anything on disk ? Register them with the index.
+            foreach (var (realm, hash, address) in _wheel.EnumerateBlocks(cancel))
+                _index.Add(realm, hash, address);
         }
 
         /// <summary> The number of referenced blocks.</summary>

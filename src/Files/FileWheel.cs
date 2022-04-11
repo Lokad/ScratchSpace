@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Lokad.ScratchSpace;
+using Lokad.ScratchSpace.Mapping;
 
 namespace Lokad.ScratchSpace.Files
 {
@@ -48,7 +50,6 @@ namespace Lokad.ScratchSpace.Files
             _onDeletion = onDeletion ?? throw new ArgumentNullException(nameof(onDeletion));
             _fs = dfs ?? throw new ArgumentNullException(nameof(dfs));
             _readFiles = new BlockFile[dfs.Count];
-
             // Discover any on-disk files. 
             foreach (var (i, mmap) in dfs.ScanExistingFiles())
             {
@@ -61,7 +62,6 @@ namespace Lokad.ScratchSpace.Files
                     mmap.Dispose();
                 }
             }
-
             // The first two files are always reserved for the first two writers.
             ReplaceFile(0);
             ReplaceFile(1);
@@ -69,13 +69,18 @@ namespace Lokad.ScratchSpace.Files
         }
 
         /// <summary> Enumerate all blocks in all files in this wheel. </summary>
-        public IEnumerable<(uint realm, Hash hash, BlockAddress address)> EnumerateBlocks()
+        public IEnumerable<(uint realm, Hash hash, BlockAddress address)> EnumerateBlocks(CancellationToken cancel)
         {
-            foreach (var f in _readFiles)
+            for (var i = _nextAlloc; i < _readFiles.Length; i++)
             {
+                var f = _readFiles[i];
                 if (f == null) continue;
-                foreach (var tup in f.EnumerateBlocks())
+
+                foreach (var tup in f.DiscoverBlocks())
                     yield return tup;
+                
+                if (cancel.IsCancellationRequested)
+                    break;
             }
         }
 

@@ -16,6 +16,7 @@ namespace Lokad.ScratchSpace.Tests.Files
             using (var data = new VolatileMemory(8192))
             using (var file = new BlockFile(data, 42))
             {
+                file.DiscoverBlocks().ToArray();
                 var blocks = file.EnumerateBlocks().ToArray();
 
                 Assert.Single(blocks);
@@ -70,6 +71,8 @@ namespace Lokad.ScratchSpace.Tests.Files
             using (var data = WithTwoBlocks(out var h1, out var h2))
             using (var file = new BlockFile(data, 13))
             {
+                file.DiscoverBlocks().ToArray();
+
                 var blocks = file.EnumerateBlocks().ToArray();
 
                 Assert.Equal(2, blocks.Length);

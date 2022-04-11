@@ -71,27 +71,6 @@ namespace Lokad.ScratchSpace.Files
             FileId = fileId;
 
             _flags = new AppendList<ReadFlag>();
-
-            var offset = 0L;
-            while (offset < _file.Length)
-            {
-                var block = AtOffset(offset);
-                ref var header = ref block.Header;
-
-                if (header.Rank != _flags.Count || header.ContentLength < 0 ||
-                    header.ContentLength + BlockHeader.Size > _file.Length)
-                {
-                    // The header of the block appears broken. Do not include
-                    // it in the list, and stop scanning (since we don't know
-                    // how far to jump ahead).
-                    break; 
-                }
-
-                var thisOffset = offset;
-                _flags.Append(ReadFlag.Triggered(() => VerifyAtOffset(thisOffset)));
-
-                offset += block.RelativeOffsetToNextBlock;
-            }
         }
 
         /// <summary>
@@ -129,7 +108,7 @@ namespace Lokad.ScratchSpace.Files
                 throw new InvalidHashException(FileId, offset, hash, block.Header.Hash);
         }
 
-        /// <summary> Enumerate all blocks in this file. </summary>
+        /// <summary> Enumerate blocks during block file deletion. </summary>
         public IEnumerable<(uint realm, Hash hash, BlockAddress address)> EnumerateBlocks()
         {
             var offset = 0L;
@@ -137,7 +116,7 @@ namespace Lokad.ScratchSpace.Files
                 yield return TupleOfBlock(FileId, ref offset);
 
             /// Need a separate function because Block/Span are not allowed in a 
-            /// yield-return functoin.
+            /// yield-return function.
             (uint realm, Hash hash, BlockAddress address) TupleOfBlock(
                 uint fileId,
                 ref long off)
@@ -148,8 +127,52 @@ namespace Lokad.ScratchSpace.Files
                 var addr = new BlockAddress(fileId, off);
 
                 off += block.RelativeOffsetToNextBlock;
-
                 return (header.Realm, header.Hash, addr);
+            }
+        }
+
+        /// <summary> Enumerate all blocks in this file. </summary>
+        public IEnumerable<(uint realm, Hash hash, BlockAddress address)> DiscoverBlocks()
+        {
+            if (!_pinner.TryPin())
+            {
+                yield break;
+            }
+
+            try
+            {
+                var offset = 0L;
+                while (offset < _file.Length)
+                {
+                    var block = AtOffset(offset);
+                    var header = block.Header;
+
+                    if (header.Rank != _flags.Count || header.ContentLength < 0 ||
+                        header.ContentLength + BlockHeader.Size > _file.Length)
+                    {
+                        // The header of the block appears broken. Do not include
+                        // it in the list, and stop scanning (since we don't know
+                        // how far to jump ahead).
+                        yield break;
+                    }
+
+                    var thisOffset = offset;
+                    _flags.Append(ReadFlag.Triggered(() => VerifyAtOffset(thisOffset)));
+
+                    var addr = new BlockAddress(FileId, offset);
+
+                    offset += block.RelativeOffsetToNextBlock;
+
+                    yield return (header.Realm, header.Hash, addr);
+                }
+            }
+            finally
+            {
+                if (_pinner.Unpin())
+                {
+                    Interlocked.MemoryBarrier();
+                    _removalCallback();
+                }
             }
         }
 

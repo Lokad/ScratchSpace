@@ -1,4 +1,5 @@
 ﻿using Lokad.ScratchSpace.Blocks;
+using System;
 
 namespace Lokad.ScratchSpace.Tests
 {
