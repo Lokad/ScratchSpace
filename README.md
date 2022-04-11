@@ -34,7 +34,7 @@ DiskFileSource src = new DiskFileSource(
 Scratch scratch = new Scratch(src, CancellationToken.None);
 ```
 
-If the folders contain files from a previous execution, the library will attempt to reload them and see if any of the blocks inside can be reused.
+If the folders contain files from a previous execution, the library will spawn a background thread to attempt to reload them and see if any of the blocks inside can be reused.
 
 ### High-level interface
 
