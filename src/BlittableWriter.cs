@@ -3,6 +3,7 @@ using Lokad.ScratchSpace.Blocks;
 using Lokad.ScratchSpace.Files;
 using Lokad.ScratchSpace.Writing;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -44,11 +45,17 @@ namespace Lokad.ScratchSpace
         /// </summary>
         public int TotalBytes { get; private set; }
 
+        /// <summary>
+        ///     List to keep track of the allocated arrays by the user.
+        /// </summary>
+        private List<byte[]> _rentedArrays;
+
         public BlittableWriter(Scratch scratch, uint realm)
         {
             _scratch = scratch;
             _realm = realm;
             _hasher = BlockHasher.Create();
+            _rentedArrays = null;
         }
 
         /// <summary>
@@ -134,6 +141,17 @@ namespace Lokad.ScratchSpace
             }
         }
 
+        /// <summary> 
+        ///     Copy the written data to a target area of memory.
+        ///     Release the rented arrays.
+        /// </summary>
+
+        private void CopyToAndRelease(Span<byte> fullSpan)
+        {
+            CopyTo(fullSpan);
+            ReleaseRentedArrays();
+        }
+
         /// <summary>
         ///     Commit the written data to the atom store, returns the size
         ///     and hash of the blob. Once this function has been called, 
@@ -152,7 +170,7 @@ namespace Lokad.ScratchSpace
             // This requests the write, but `CopyTo` will be called later
             // (possibly much later), which is why we prevent further writes
             // to this writer.
-            _scratch.Write(_realm, hash, TotalBytes, CopyTo);
+            _scratch.Write(_realm, hash, TotalBytes, CopyToAndRelease);
             
             return hash;
         }
@@ -175,6 +193,44 @@ namespace Lokad.ScratchSpace
             CopyTo(bytes);
             using (var stream = new FileStream(path, FileMode.Create))
                 stream.Write(bytes, 0, bytes.Length);
+        }
+
+        /// <summary>
+        ///     Allow the user to rent arrays.
+        /// </summary>
+        public byte[] RentArray(int minimumLength)
+        {
+            var array =  ArrayPool<byte>.Shared.Rent(minimumLength);
+            if (_rentedArrays == null)
+                _rentedArrays = new List<byte[]>();
+            _rentedArrays.Add(array);
+            return array;
+        }
+
+        /// <summary>
+        ///     Release the rented arrays.
+        ///     Need to be explicitly called.
+        /// </summary>
+        public void ReleaseRentedArrays()
+        {
+            if (_rentedArrays == null)
+                return;
+
+            foreach (var array in _rentedArrays)
+            {
+                ArrayPool<byte>.Shared.Return(array);
+            }
+            _rentedArrays.Clear();
+        }
+
+        /// <summary>
+        ///     Write a value that must be computed after it has been added to the BlittableWriter.
+        /// </summary>
+        public DelayedWrite<T> WriteDelayed<T>() where T : unmanaged 
+        {
+            var delayed = new DelayedWrite<T>();
+            Write(delayed);
+            return delayed;
         }
 
         /// <summary> Used to reset the checksum during the pre-commit phase. </summary>

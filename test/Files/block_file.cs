@@ -130,7 +130,7 @@ namespace Lokad.ScratchSpace.Tests.Files
                 {
                     Assert.Equal("address", a.ParamName);
                     Assert.Equal(
-                        "Address in file 11 not present in file 13\r\nParameter name: address", 
+                        "Address in file 11 not present in file 13 (Parameter 'address')", 
                         a.Message);
                 }
             }
