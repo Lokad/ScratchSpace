@@ -180,9 +180,9 @@ namespace Lokad.ScratchSpace.Indexing
                 {
                     for (var i = 1; i < 4; ++i)
                     {
-                        if (_entries[bucket + i].Address.IsNone())
+                        if (_entries[last + i].Address.IsNone())
                         {
-                            return bucket + i;
+                            return last + i;
                         }
                     }
                 }

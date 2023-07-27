@@ -1,12 +1,9 @@
 ﻿using Lokad.ContentAddr;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using Lokad.ScratchSpace.Indexing;
-using Xunit;
 using Lokad.ScratchSpace.Blocks;
-using Xunit.Abstractions;
+using Lokad.ScratchSpace.Indexing;
 using System.Diagnostics;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Lokad.ScratchSpace.Tests.Indexing
 {
@@ -174,6 +171,23 @@ namespace Lokad.ScratchSpace.Tests.Indexing
             Assert.True(_index.Get(0, h2).IsNone());
             Assert.Equal(a1, _index.Get(0, h1));
             Assert.Equal(a3, _index.Get(1, h1));
+        }
+
+        [Fact]
+        public void add_in_last_bucket()
+        {
+            var a1 = new BlockAddress(1, 0);
+            var a2 = new BlockAddress(2, 4096);
+            var a3 = new BlockAddress(3, 4096 * 2);
+
+            var last = IndexEntry.EntryKey.BucketCount - 1;
+            var h1 = HashInBucket(last, 0);
+            var h2 = HashInBucket(last, 1);
+            var h3 = HashInBucket(last, 2);
+
+            Assert.True(_index.Add(1, h1, a1));
+            Assert.True(_index.Add(2, h2, a2));
+            Assert.True(_index.Add(3, h3, a3));
         }
 
         [Fact(Skip = "Stress test; can take a while")]
