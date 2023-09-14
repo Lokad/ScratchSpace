@@ -59,8 +59,34 @@ namespace Lokad.ScratchSpace.Files
                 throw new ArgumentException($"Files must contain at most {BlockAddress.MaxFileSize} bytes",
                     nameof(fileSize));
 
+            // Create directories if they do not exist yet, and remove any files which match 
+            // the naming scheme but are not used by this instance (i.e. left over from 
+            // a previous execution with a higher count). 
+            var existing = new HashSet<string>();
             foreach (var f in _folders)
+            {
                 Directory.CreateDirectory(f);
+                foreach (var filename in Directory.EnumerateFiles(f))
+                {
+                    if (!MatchesNamingScheme(filename)) continue;
+                    existing.Add(Path.Combine(f, filename));
+                }
+            }
+
+            for (var i = 0; i < Count; ++i)
+                existing.Remove(FullFilePath(_folders, i, Count));
+
+            foreach (var toRemove in existing)
+            {
+                try
+                {
+                    File.Delete(toRemove);
+                }
+                catch (Exception ex)
+                {
+                    new ArgumentException($"Cannot remove existing file {toRemove}.", nameof(folders), ex);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -71,7 +97,7 @@ namespace Lokad.ScratchSpace.Files
 
             for (var i = 0; i < Count; ++i)
             {
-                var file = new FileInfo(FullFilePath(i));
+                var file = new FileInfo(FullFilePath(_folders, i, Count));
                 if (!file.Exists) continue;
 
                 if (file.Length != _fileSize)
@@ -91,7 +117,7 @@ namespace Lokad.ScratchSpace.Files
         /// <inheritdoc/>
         public IFileMemory DeleteAndCreate(int i)
         {
-            var path = FullFilePath(i);
+            var path = FullFilePath(_folders, i, Count);
 
             var mmf = MemoryMappedFile.CreateFromFile(
                 path, FileMode.Create, null, _fileSize);
@@ -100,17 +126,29 @@ namespace Lokad.ScratchSpace.Files
         }
 
         /// <summary> The full path of a file. </summary>
-        private string FullFilePath(int i)
+        public static string FullFilePath(IReadOnlyList<string> folders, int i, int count)
         {
-            if (i < 0 || i >= Count)
+            if (i < 0 || i >= count)
                 throw new ArgumentOutOfRangeException(
                     nameof(i),
-                    $"No file {i}, max is {Count}");
+                    $"No file {i}, max is {count}");
 
             return Path.Combine(
-                _folders[i % _folders.Count],
-                $"{i:D4}.bin");
+                folders[i % folders.Count],
+                $"{i/folders.Count:D4}.bin");
         }
+
+        /// <summary>
+        ///     True if the provided filename matches the naming scheme used by the disk file 
+        ///     source (and therefore, if not used, should be deleted).
+        /// </summary>
+        public static bool MatchesNamingScheme(string filename) =>
+            filename.Length == 8 &&
+            filename.EndsWith(".bin") &&
+            char.IsDigit(filename[0]) &&
+            char.IsDigit(filename[1]) &&
+            char.IsDigit(filename[2]) &&
+            char.IsDigit(filename[3]);
 
         /// <inheritdoc/>
         public int Count => _folders.Count * _filesPerFolder;
